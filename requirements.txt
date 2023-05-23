@@ -1,0 +1,15 @@
+fastapi==0.68.1
+uvicorn==0.15.0
+<<<<<<< HEAD
+tensorflow==2.12.0
+scikit-learn==1.0.2
+pyjwt==2.3.0
+jose==0.2.2
+pymongo==4.1.0
+bson==0.5.10
+
+
+=======
+tensorflow==2.6.0
+scikit-learn==1.0.2
+>>>>>>> 4645186d6d830a5c183783159d8e6340f178c556
