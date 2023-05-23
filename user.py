@@ -2,10 +2,8 @@ from pymongo import MongoClient
 from bson.objectid import ObjectId
 from fastapi import HTTPException
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
-from werkzeug.security import generate_password_hash, check_password_hash
-from fastapi.security import HTTPAuthorizationCredentials
-
-
+import bcrypt
+import jwt
 import pymongo.errors
 
 # Conexión a la base de datos
@@ -16,14 +14,19 @@ security = HTTPBasic()
 
 # Función para hashear una contraseña
 def hash_password(password):
-    return generate_password_hash(password)
+    hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+    return hashed_password.decode('utf-8')
 
-#login usuario 
+# Login de usuario
 def authenticate_user(credentials: HTTPBasicCredentials):
     users_collection = client.pg.user
     user = users_collection.find_one({"email": credentials.username})
-    if user and check_password_hash(user["password"], credentials.password):
-        return True
+    if user:
+        stored_hash = user["password"]
+        entered_password = credentials.password.encode('utf-8')
+        
+        if bcrypt.checkpw(entered_password, stored_hash.encode('utf-8')):
+            return True
     raise HTTPException(status_code=401, detail="Invalid email or password")
 
 
@@ -64,6 +67,7 @@ def insert_User(name, email, password, role):
         print("Usuario insertado con el ID:", result.inserted_id)
     except pymongo.errors.ConnectionFailure as errorConexion:
         print("Fallo al conectarse a MongoDB:", errorConexion)
+
 
 
 #Actualizar usuario en la coleccion

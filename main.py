@@ -1,4 +1,5 @@
 import uvicorn
+import numpy as np
 from fastapi import HTTPException, Depends
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -7,18 +8,10 @@ from tensorflow.keras.layers import Dense
 from tensorflow.keras.optimizers import Adam
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.preprocessing import LabelEncoder
-import numpy as np
-<<<<<<< HEAD
 from pydantic import BaseModel
-
 from user import authenticate_user, read_User, insert_User, modify_User, delete_User
 from user import HTTPBasicCredentials
-=======
 
-from auth import authenticate_user
-from auth import HTTPBasicCredentials
-from response import save_response
->>>>>>> 4645186d6d830a5c183783159d8e6340f178c556
 
 # Datos de prueba para el entrenamiento
 data = [    ['tecnologia', 'analisis numerico', 'ingeniero de software'],
@@ -73,15 +66,12 @@ model.fit(X.toarray(), y, epochs=1000, batch_size=8, verbose=0)
 # Aplicacion web con FastAPI 
 app = FastAPI()
 
-<<<<<<< HEAD
 class User(BaseModel):
     name: str
     email: str
     password: str
     role: str
 
-=======
->>>>>>> 4645186d6d830a5c183783159d8e6340f178c556
 origins = [
     "http://localhost:3000",
 ]
@@ -103,17 +93,12 @@ async def obtener_prediccion(datos: dict):
     nueva_prediccion = encoder.inverse_transform(np.argmax(nueva_prediccion_numerica, axis=-1))
     return {'profesion_predicha': nueva_prediccion[0]}
 
-<<<<<<< HEAD
-=======
-
->>>>>>> 4645186d6d830a5c183783159d8e6340f178c556
 @app.post("/login")
 def login(credentials: HTTPBasicCredentials):
     if not authenticate_user(credentials):
         raise HTTPException(status_code=401, detail="Usuario o contraseña incorrectos")
     return {"mensaje": "Inicio de sesión exitoso"}
 
-<<<<<<< HEAD
 @app.get("/users")
 def get_users():
     users = read_User()
@@ -133,5 +118,3 @@ def update_user(user_id: str, user_input: User):
 def delete_user(user_id: str):
     delete_User(user_id)
     return {"message": "Usuario eliminado correctamente"}
-=======
->>>>>>> 4645186d6d830a5c183783159d8e6340f178c556
