@@ -32,12 +32,15 @@ y = encoder.fit_transform(profesiones)
 
 # Crear modelo de red neuronal
 model = Sequential()
-model.add(Dense(10, input_dim=X.shape[1], activation="relu"))
-model.add(Dense(8, activation="relu"))
+model.add(Dense(64, input_dim=X.shape[1], activation="relu"))
+model.add(Dense(32, activation="relu"))
 model.add(Dense(len(set(profesiones)), activation="softmax"))
 
 # Compilar modelo
-model.compile(loss="sparse_categorical_crossentropy", optimizer=Adam(learning_rate=0.001), metrics=["accuracy"])
+model.compile(loss="sparse_categorical_crossentropy", optimizer=Adam(learning_rate=0.01), metrics=["accuracy"])
 
 # Entrenar modelo
 model.fit(X.toarray(), y, epochs=1000, batch_size=8, verbose=0)
+
+# Guardar el modelo entrenado
+model.save("modelo_carreras.h5")

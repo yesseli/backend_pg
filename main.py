@@ -11,56 +11,7 @@ from sklearn.preprocessing import LabelEncoder
 from pydantic import BaseModel
 from user import authenticate_user, read_User, insert_User, modify_User, delete_User
 from user import HTTPBasicCredentials
-
-
-# Datos de prueba para el entrenamiento
-data = [    ['tecnologia', 'analisis numerico', 'ingeniero de software'],
-    ['arte', 'creatividad', 'disenador grafico'],
-    ['ciencias sociales', 'comunicacion', 'periodista'],
-    ['salud', 'empatia', 'psicologo clinico'],
-    ['deportes', 'trabajo en equipo', 'entrenador deportivo'],
-    ['tecnologia', 'comunicacion', 'marketing digital'],
-    ['animales', 'empatia', 'veterinario'],
-    ['deportes', 'autos', 'piloto de carreras'],
-    ['cocina', 'reposteria', 'repostero y pastelero'],
-    ['cocina', 'comida', 'cocinero'],
-    ['negocios', 'liderazgo', 'analista financiero'],
-    ['literatura', 'comprension lectora', 'critico literario'],
-    ['arquitectura', 'diseno arquitectonico', 'arquitecto'],
-    ['decoracion', 'creatividad', 'disenador de interiores'],
-    ['comunicacion', 'pensamiento creativo', 'relaciones publicas'],
-    ['educacion', 'comunicacion efectiva', 'profesor'],
-    ['quimico', 'notacion cientifica', 'quimico'],
-    ['crear', 'curiosidad', 'cientifico'],
-    ['arquitectura', 'autos', 'ingeniero mecanico']
-]
-
-# Separar los datos en interes, habilidades y profesion
-interes = []
-habilidades = []
-profesion = []
-for row in data:
-    interes.append(row[0])
-    habilidades.append(row[1])
-    profesion.append(row[2])
-
-# Convertir interes y habilidades a datos numericos
-vectorizer = CountVectorizer()
-X = vectorizer.fit_transform([' '.join(i) for i in zip(interes, habilidades)])
-encoder = LabelEncoder()
-y = encoder.fit_transform(profesion)
-
-# Crear modelo de red neuronal
-model = Sequential()
-model.add(Dense(10, input_dim=X.shape[1], activation='relu'))
-model.add(Dense(8, activation='relu'))
-model.add(Dense(len(set(profesion)), activation='softmax'))
-
-# Compilar modelo
-model.compile(loss='sparse_categorical_crossentropy', optimizer=Adam(learning_rate=0.001), metrics=['accuracy'])
-
-# Entrenar modelo
-model.fit(X.toarray(), y, epochs=1000, batch_size=8, verbose=0)
+from model import model, vectorizer, encoder 
 
 
 # Aplicacion web con FastAPI 
@@ -77,21 +28,27 @@ origins = [
 ]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+
 #endpoint para obtener una predicción de profesión basada en los datos de entrada
 @app.post("/prediccion")
 async def obtener_prediccion(datos: dict):
 
-    nuevo_dato = [datos['interes'], datos['habilidades']]
+    nuevo_dato = [datos['intereses'], datos['habilidades']]
     nuevo_dato_numerico = vectorizer.transform([' '.join(nuevo_dato)])
     nueva_prediccion_numerica = model.predict(nuevo_dato_numerico.toarray())
     nueva_prediccion = encoder.inverse_transform(np.argmax(nueva_prediccion_numerica, axis=-1))
-    return {'profesion_predicha': nueva_prediccion[0]}
+
+    if nueva_prediccion[0] == "otro":
+        raise HTTPException(status_code=404, detail="No se encontró una carrera adecuada para los intereses y habilidades proporcionados.")
+
+    return {'profesion predicha': nueva_prediccion[0]}
+
 
 @app.post("/login")
 def login(credentials: HTTPBasicCredentials):

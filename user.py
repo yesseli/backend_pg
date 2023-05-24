@@ -22,12 +22,14 @@ def authenticate_user(credentials: HTTPBasicCredentials):
     users_collection = client.pg.user
     user = users_collection.find_one({"email": credentials.username})
     if user:
-        stored_hash = user["password"]
+        stored_hash = user["password"].encode('utf-8')
         entered_password = credentials.password.encode('utf-8')
         
-        if bcrypt.checkpw(entered_password, stored_hash.encode('utf-8')):
+        if bcrypt.checkpw(entered_password, stored_hash):
             return True
     raise HTTPException(status_code=401, detail="Invalid email or password")
+
+
 
 
 #mostrar usuarios de la coleccion
