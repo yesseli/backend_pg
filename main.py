@@ -1,17 +1,19 @@
 import numpy as np
 from fastapi import HTTPException, Depends, Request
 from starlette.responses import Response
-from fastapi import FastAPI
-from fastapi.security import HTTPBasicCredentials, APIKeyCookie
+from fastapi import FastAPI, APIRouter
+from fastapi.security import HTTPBasicCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from user import (authenticate_user, read_User, insert_User, modify_User, delete_User, has_role, generate_token, get_token_from_cookie, allowed_roles)
+from user import (authenticate_user, read_User, insert_User, modify_User, delete_User, 
+generate_token, get_token_from_cookie, has_role, get_user_role, allowed_roles)
 from model import model, vectorizer, encoder
-import jwt
+from starlette.responses import JSONResponse
 
 
 # Aplicacion web con FastAPI 
 app = FastAPI()
+router = APIRouter()
 
 class User(BaseModel):
     name: str
@@ -28,6 +30,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Set-Cookie"],
 )
 
 
@@ -51,19 +54,26 @@ def login(credentials: HTTPBasicCredentials, response: Response):
     if not authenticate_user(credentials):
         raise HTTPException(status_code=401, detail="Usuario o contraseña incorrectos")
     
-    # Generar el token JWT con el nombre de usuario y roles
-    token = generate_token(credentials.username, ["admin", "student"])
+    role = get_user_role(credentials.username)
+
+    # Generar el token JWT con los datos del usuario
+    token = generate_token(credentials.username, [role])
 
     # Establecer la cookie en la respuesta
     response.set_cookie(key="token", value=token, samesite="None")
-    return {"message": "Inicio de sesión exitoso", "token": token}
+    print("Inicio de sesión exitoso. Rol del usuario:", role)
+
+    return {"message": f"Inicio de sesión exitoso. Rol del usuario: {role}", "token": token, "role": role}
     
 
-@app.get("/users", dependencies=[Depends(has_role(allowed_roles))])
 def get_users(request: Request):
-    token = get_token_from_cookie(request)
     users = read_User()
     return {"users": users}
+@app.get("/users")
+@has_role(["admin"])
+async def get_users_protected(request: Request):
+    return get_users(request)
+
 
 @app.post("/users")
 def create_user(user: User):
@@ -79,3 +89,11 @@ def update_user(user_id: str, user_input: User):
 def delete_user(user_id: str):
     delete_User(user_id)
     return {"message": "Usuario eliminado correctamente"}
+
+
+@app.post("/logout")
+def logout(response: Response):
+    response = JSONResponse({"message": "Cierre de sesión exitoso"})
+    response.delete_cookie("token", path="/", domain="localhost")
+
+    return response

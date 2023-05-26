@@ -32,13 +32,12 @@ def authenticate_user(credentials: HTTPBasicCredentials):
             return generate_token(credentials.username, [user["role"]])
     raise HTTPException(status_code=401, detail="Invalid email or password")
 
-# Generar un token JWT válido con roles
+# Generar un token JWT 
 def generate_token(username, roles):
     payload = {"username": username, "roles": roles}
     token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
     print("Token generado:", token)
     return token
-
 
 #mostrar usuarios de la coleccion
 def read_User():
@@ -119,16 +118,17 @@ def delete_User(user_id):
 # Roles permitidos
 allowed_roles = ['admin', 'student']
 
+
 # Verificar el rol del usuario y su permiso
 def has_role(allowed_roles):
     def decorator(func):
-        def wrapper(*args, request: Request, **kwargs):
+        async def wrapper( request: Request):
             token = get_token_from_cookie(request)
             try:
                 payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
                 user_roles = payload.get("roles", [])
                 if any(role in allowed_roles for role in user_roles):
-                    return func(*args, **kwargs)
+                    return await func(request)
                 raise HTTPException(status_code=403, detail="No tienes permiso para acceder a esta ruta")
             except jwt.exceptions.DecodeError:
                 raise HTTPException(status_code=401, detail="Token inválido")
@@ -137,20 +137,21 @@ def has_role(allowed_roles):
         return wrapper
     return decorator
 
+def get_user_role(username):
+    collection = client.pg.user
+    user = collection.find_one({"email": username})
+    if user:
+        return user["role"]
+    else:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado en la base de datos")
+
+
 # Obtener el token de la cookie
 def get_token_from_cookie(request: Request):
-    if "Authorization" in request.cookies:
-        return request.cookies["Authorization"]
+    if "token" in request.cookies:
+        return request.cookies["token"]
     raise HTTPException(status_code=401, detail="Token no encontrado en la cookie")
 
-# Función para verificar el rol de administrador del usuario
-def check_admin_role(credentials: HTTPBasicCredentials):
-    if not authenticate_user(credentials):
-        raise HTTPException(status_code=401, detail="Usuario o contraseña incorrectos")
-    
-    # Verificar el rol del usuario en la base de datos
-    user = client.pg.user.find_one({"email": credentials.username})
-    if user and user.get("role") == "admin":
-        return generate_token(credentials.username, ["admin"])
-    
-    raise HTTPException(status_code=403, detail="Acceso denegado")
+
+
+
