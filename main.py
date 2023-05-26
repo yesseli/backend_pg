@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from user import (authenticate_user, read_User, insert_User, modify_User, delete_User, 
 generate_token, get_token_from_cookie, has_role, get_user_role, allowed_roles)
 from model import model, vectorizer, encoder
+from modeltwo import model as modeltwo, vectorizer as vectorizertwo, encoder as encodertwo
 from starlette.responses import JSONResponse
 
 
@@ -97,3 +98,40 @@ def logout(response: Response):
     response.delete_cookie("token", path="/", domain="localhost")
 
     return response
+
+
+@app.post("/predicciontwo")
+async def obtener_prediccionn(datos: dict):
+    nuevo_dato = {
+        "areas_estudio": datos['areas_estudio'],
+        "habilidades": datos['habilidades'],
+        "actividades": datos['actividades'],
+        "desafios": datos['desafios'],
+        "entorno_trabajo": datos['entorno_trabajo'],
+        "interaccion_personas": datos['interaccion_personas'],
+        "tecnologia": datos['tecnologia'],
+        "objetivo": datos['objetivo'],
+        "ubicacion": datos['ubicacion']
+    }
+
+    nuevo_dato_texto = "{} {} {} {} {} {} {} {} {}".format(
+        " ".join(nuevo_dato['areas_estudio']),
+        " ".join(nuevo_dato['habilidades']),
+        " ".join(nuevo_dato['actividades']),
+        " ".join(nuevo_dato['desafios']),
+        " ".join(nuevo_dato['entorno_trabajo']),
+        " ".join(nuevo_dato['interaccion_personas']),
+        nuevo_dato['tecnologia'],
+        nuevo_dato['objetivo'],
+        " ".join(nuevo_dato['ubicacion'])
+    )
+
+    nuevo_dato_numerico = vectorizertwo.transform([nuevo_dato_texto])
+    nueva_prediccion_numerica = modeltwo.predict(nuevo_dato_numerico.toarray())
+    nueva_prediccion = encodertwo.inverse_transform(np.argmax(nueva_prediccion_numerica, axis=-1))
+
+    if nueva_prediccion[0] == "otro":
+        raise HTTPException(status_code=404, detail="No se encontró una carrera adecuada para los datos proporcionados.")
+
+    return {'profesion_predicha': nueva_prediccion[0]}
+    
