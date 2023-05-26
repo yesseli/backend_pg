@@ -1,17 +1,13 @@
-import uvicorn
 import numpy as np
-from fastapi import HTTPException, Depends
+from fastapi import HTTPException, Depends, Request
+from starlette.responses import Response
 from fastapi import FastAPI
+from fastapi.security import HTTPBasicCredentials, APIKeyCookie
 from fastapi.middleware.cors import CORSMiddleware
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense
-from tensorflow.keras.optimizers import Adam
-from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.preprocessing import LabelEncoder
 from pydantic import BaseModel
-from user import authenticate_user, read_User, insert_User, modify_User, delete_User
-from user import HTTPBasicCredentials
-from model import model, vectorizer, encoder 
+from user import (authenticate_user, read_User, insert_User, modify_User, delete_User, has_role, generate_token, get_token_from_cookie, allowed_roles)
+from model import model, vectorizer, encoder
+import jwt
 
 
 # Aplicacion web con FastAPI 
@@ -51,13 +47,21 @@ async def obtener_prediccion(datos: dict):
 
 
 @app.post("/login")
-def login(credentials: HTTPBasicCredentials):
+def login(credentials: HTTPBasicCredentials, response: Response):
     if not authenticate_user(credentials):
         raise HTTPException(status_code=401, detail="Usuario o contraseña incorrectos")
-    return {"mensaje": "Inicio de sesión exitoso"}
+    
+    # Generar el token JWT con el nombre de usuario y roles
+    token = generate_token(credentials.username, ["admin", "student"])
 
-@app.get("/users")
-def get_users():
+    # Establecer la cookie en la respuesta
+    response.set_cookie(key="token", value=token, samesite="None")
+    return {"message": "Inicio de sesión exitoso", "token": token}
+    
+
+@app.get("/users", dependencies=[Depends(has_role(allowed_roles))])
+def get_users(request: Request):
+    token = get_token_from_cookie(request)
     users = read_User()
     return {"users": users}
 

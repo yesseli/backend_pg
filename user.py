@@ -1,6 +1,6 @@
 from pymongo import MongoClient
 from bson.objectid import ObjectId
-from fastapi import HTTPException
+from fastapi import HTTPException, Depends, Request
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 import bcrypt
 import jwt
@@ -11,6 +11,9 @@ client = MongoClient('mongodb+srv://yeml:b1NIwHqUFJ9VJ7Sn@cluster0.tnh0n1t.mongo
 #print(client)
 # Funciones para interactuar con la base de datos
 security = HTTPBasic()
+
+# clave secreta para los tokens
+SECRET_KEY = "mi_clave_secreta"
 
 # Función para hashear una contraseña
 def hash_password(password):
@@ -26,10 +29,15 @@ def authenticate_user(credentials: HTTPBasicCredentials):
         entered_password = credentials.password.encode('utf-8')
         
         if bcrypt.checkpw(entered_password, stored_hash):
-            return True
+            return generate_token(credentials.username, [user["role"]])
     raise HTTPException(status_code=401, detail="Invalid email or password")
 
-
+# Generar un token JWT válido con roles
+def generate_token(username, roles):
+    payload = {"username": username, "roles": roles}
+    token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
+    print("Token generado:", token)
+    return token
 
 
 #mostrar usuarios de la coleccion
@@ -107,3 +115,42 @@ def delete_User(user_id):
             print("El usuario no existe en la colección")
     except pymongo.errors.ConnectionFailure as errorConexion:
         print("Fallo al conectarse a MongoDB:", errorConexion)
+
+# Roles permitidos
+allowed_roles = ['admin', 'student']
+
+# Verificar el rol del usuario y su permiso
+def has_role(allowed_roles):
+    def decorator(func):
+        def wrapper(*args, request: Request, **kwargs):
+            token = get_token_from_cookie(request)
+            try:
+                payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+                user_roles = payload.get("roles", [])
+                if any(role in allowed_roles for role in user_roles):
+                    return func(*args, **kwargs)
+                raise HTTPException(status_code=403, detail="No tienes permiso para acceder a esta ruta")
+            except jwt.exceptions.DecodeError:
+                raise HTTPException(status_code=401, detail="Token inválido")
+            except jwt.exceptions.ExpiredSignatureError:
+                raise HTTPException(status_code=401, detail="Token expirado")
+        return wrapper
+    return decorator
+
+# Obtener el token de la cookie
+def get_token_from_cookie(request: Request):
+    if "Authorization" in request.cookies:
+        return request.cookies["Authorization"]
+    raise HTTPException(status_code=401, detail="Token no encontrado en la cookie")
+
+# Función para verificar el rol de administrador del usuario
+def check_admin_role(credentials: HTTPBasicCredentials):
+    if not authenticate_user(credentials):
+        raise HTTPException(status_code=401, detail="Usuario o contraseña incorrectos")
+    
+    # Verificar el rol del usuario en la base de datos
+    user = client.pg.user.find_one({"email": credentials.username})
+    if user and user.get("role") == "admin":
+        return generate_token(credentials.username, ["admin"])
+    
+    raise HTTPException(status_code=403, detail="Acceso denegado")
