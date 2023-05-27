@@ -2,6 +2,7 @@ from pymongo import MongoClient
 from bson.objectid import ObjectId
 from fastapi import HTTPException, Depends, Request
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from fastapi.responses import RedirectResponse
 import bcrypt
 import jwt
 import pymongo.errors
@@ -152,6 +153,17 @@ def get_token_from_cookie(request: Request):
         return request.cookies["token"]
     raise HTTPException(status_code=401, detail="Token no encontrado en la cookie")
 
-
-
+def login_required(func):
+    async def wrapper(request: Request):
+        try:
+            token = get_token_from_cookie(request)
+            payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+            return await func(request)
+        except jwt.exceptions.DecodeError:
+            return RedirectResponse("/login")
+        except jwt.exceptions.ExpiredSignatureError:
+            return RedirectResponse("/login")
+        except HTTPException as e:
+            return RedirectResponse("/login")
+    return wrapper
 

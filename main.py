@@ -6,7 +6,7 @@ from fastapi.security import HTTPBasicCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from user import (authenticate_user, read_User, insert_User, modify_User, delete_User, 
-generate_token, get_token_from_cookie, has_role, get_user_role, allowed_roles)
+generate_token, get_token_from_cookie, has_role, get_user_role, allowed_roles, login_required)
 from model import model, vectorizer, encoder
 from modeltwo import model as modeltwo, vectorizer as vectorizertwo, encoder as encodertwo
 from starlette.responses import JSONResponse
@@ -72,6 +72,7 @@ def get_users(request: Request):
     return {"users": users}
 @app.get("/users")
 @has_role(["admin"])
+@login_required
 async def get_users_protected(request: Request):
     return get_users(request)
 
@@ -132,6 +133,6 @@ async def obtener_prediccionn(datos: dict):
 
     if nueva_prediccion[0] == "otro":
         raise HTTPException(status_code=404, detail="No se encontró una carrera adecuada para los datos proporcionados.")
-
+    print(nueva_prediccion)
     return {'profesion_predicha': nueva_prediccion[0]}
     
