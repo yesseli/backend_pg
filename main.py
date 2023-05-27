@@ -10,6 +10,7 @@ generate_token, get_token_from_cookie, has_role, get_user_role, allowed_roles, l
 from model import model, vectorizer, encoder
 from modeltwo import model as modeltwo, vectorizer as vectorizertwo, encoder as encodertwo
 from starlette.responses import JSONResponse
+from career import read_Career
 
 
 # Aplicacion web con FastAPI 
@@ -135,4 +136,11 @@ async def obtener_prediccionn(datos: dict):
         raise HTTPException(status_code=404, detail="No se encontró una carrera adecuada para los datos proporcionados.")
     print(nueva_prediccion)
     return {'profesion_predicha': nueva_prediccion[0]}
+
+
+
+@app.get("/careers")
+def get_career():
+    careers = read_Career()
+    return {"careers": careers}
     
